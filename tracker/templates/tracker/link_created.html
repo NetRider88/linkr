@@ -1,0 +1,35 @@
+<!-- tracker/templates/tracker/link_created.html -->
+{% extends 'tracker/base.html' %}
+
+{% block title %}Link Created{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h2>Link Created Successfully</h2>
+    </div>
+    <div class="card-body">
+        <div class="mb-3">
+            <label class="form-label">Your short link:</label>
+            <div class="input-group">
+                <input type="text" class="form-control" id="shortLink" value="{{ request.scheme }}://{{ request.get_host }}/{{ short_id }}/" readonly>
+                <button class="btn btn-primary" id="copyButton" onclick="copyToClipboard()">
+                    Copy Link
+                </button>
+            </div>
+        </div>
+        <a href="{% url 'analytics' short_id %}" class="btn btn-secondary">View Analytics</a>
+    </div>
+</div>
+
+<script>
+function copyToClipboard() {
+    var fullUrl = '{{ request.scheme }}://{{ request.get_host }}/{{ short_id }}/';
+    navigator.clipboard.writeText(fullUrl).then(function() {
+        alert('Link copied to clipboard!');
+    }, function(err) {
+        console.error('Could not copy text: ', err);
+    });
+}
+</script>
+{% endblock %}

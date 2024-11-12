@@ -1,0 +1,61 @@
+<!-- tracker/templates/tracker/analytics_list.html -->
+{% extends 'tracker/base.html' %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h2>Analytics Overview</h2>
+    </div>
+    <div class="card-body">
+        {% if links %}
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Short URL</th>
+                            <th>Total Clicks</th>
+                            <th>Created At</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for link in links %}
+                        <tr>
+                            <td>{{ link.name|default:link.short_id }}</td>
+                            <td>
+                                <div class="input-group">
+                                    <input type="text" class="form-control" value="{{ request.scheme }}://{{ request.get_host }}/{{ link.short_id }}/" readonly>
+                                    <button class="btn btn-outline-secondary" onclick="copyToClipboard(this)" data-url="{{ request.scheme }}://{{ request.get_host }}/{{ link.short_id }}/">
+                                        Copy
+                                    </button>
+                                </div>
+                            </td>
+                            <td>{{ link.total_clicks }}</td>
+                            <td>{{ link.created_at|date:"Y-m-d H:i" }}</td>
+                            <td>
+                                <a href="{% url 'analytics' link.short_id %}" class="btn btn-sm btn-info">
+                                    Detailed Analytics
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p class="text-center">No links found. <a href="{% url 'generate_link' %}">Create your first link</a></p>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+function copyToClipboard(button) {
+    const url = button.dataset.url;
+    navigator.clipboard.writeText(url).then(function() {
+        button.innerHTML = 'Copied!';
+        setTimeout(() => button.innerHTML = 'Copy', 2000);
+    });
+}
+</script>
+{% endblock %}
