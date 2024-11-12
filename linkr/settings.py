@@ -10,10 +10,10 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
-from pathlib import Path
 import os
+from pathlib import Path
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
+# Build paths inside the project like this: BASE_DIR / 'subdir'
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
@@ -24,22 +24,27 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = "django-insecure-^1cbp@k5bm^g2z)asz35_b4q50bs&z@azt5re2w9vy$j%1-tj#"
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 
-ALLOWED_HOSTS = ['https://johnmos.pythonanywhere.com']
+ALLOWED_HOSTS = ['127.0.0.1', 'localhost', 'johnmos.pythonanywhere.com']
 
 
 # Application definition
 
 INSTALLED_APPS = [
+    # Default Django apps...
     "django.contrib.admin",
     "django.contrib.auth",
+    # ... other default apps
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    # Your apps
     "tracker",
 ]
+
+# ... other settings ...
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -117,11 +122,11 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
-STATIC_ROOT = '/home/johnmos/linkr/static'
 STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / 'static'
 
-MEDIA_ROOT = '/home/johnmos/linkr/media'
 MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
