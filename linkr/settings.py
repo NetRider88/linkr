@@ -13,9 +13,21 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 import os
 from pathlib import Path
 
+# GDAL Configuration
+if os.path.exists('/opt/homebrew/opt/gdal'):
+    # M1/M2 Mac
+    os.environ['GDAL_LIBRARY_PATH'] = '/opt/homebrew/opt/gdal/lib/libgdal.dylib'
+    os.environ['GEOS_LIBRARY_PATH'] = '/opt/homebrew/opt/geos/lib/libgeos_c.dylib'
+elif os.path.exists('/usr/local/opt/gdal'):
+    # Intel Mac
+    os.environ['GDAL_LIBRARY_PATH'] = '/usr/local/opt/gdal/lib/libgdal.dylib'
+    os.environ['GEOS_LIBRARY_PATH'] = '/usr/local/opt/geos/lib/libgeos_c.dylib'
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Add GeoIP path configuration
+GEOIP_PATH = BASE_DIR / 'geoip'
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
@@ -28,20 +40,18 @@ DEBUG = True
 
 ALLOWED_HOSTS = ['127.0.0.1', 'localhost', 'johnmos.pythonanywhere.com']
 
+DEFAULT_DOMAIN = 'JOhnMos.pythonanywhere.com'
 
 # Application definition
 
 INSTALLED_APPS = [
-    # Default Django apps...
-    "django.contrib.admin",
-    "django.contrib.auth",
-    # ... other default apps
-    "django.contrib.contenttypes",
-    "django.contrib.sessions",
-    "django.contrib.messages",
-    "django.contrib.staticfiles",
-    # Your apps
-    "tracker",
+    'django.contrib.admin',
+    'django.contrib.auth',
+    'django.contrib.contenttypes',
+    'django.contrib.sessions',
+    'django.contrib.messages',
+    'django.contrib.staticfiles',
+    'tracker',
 ]
 
 # ... other settings ...
@@ -61,8 +71,8 @@ ROOT_URLCONF = "linkr.urls"
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'templates'],  # Ensure this points to your templates directory
-        'APP_DIRS': True,
+        'DIRS': [],  # Empty since we're using app templates
+        'APP_DIRS': True,  # This enables app-level templates
         'OPTIONS': {
             'context_processors': [
                 'django.template.context_processors.debug',
@@ -112,7 +122,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = "en-us"
 
-TIME_ZONE = "UTC"
+TIME_ZONE = "Asia/Dubai"  # e.g., "America/New_York" or "Europe/London"
 
 USE_I18N = True
 
@@ -136,3 +146,14 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 LOGIN_REDIRECT_URL = 'home'
 LOGOUT_REDIRECT_URL = 'home'
 LOGIN_URL = 'login'
+
+GEOIP_PATH = BASE_DIR / 'geoip'
+
+# Email settings
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.dreamhost.com'  # e.g., 'smtp.gmail.com' for Gmail
+EMAIL_PORT = 587  # or 465 for SSL
+EMAIL_USE_TLS = True  # or EMAIL_USE_SSL = True for SSL
+EMAIL_HOST_USER = 'john@johnmos.com'
+EMAIL_HOST_PASSWORD = 'Torero@000'
+DEFAULT_FROM_EMAIL = 'john@johnmos.com'

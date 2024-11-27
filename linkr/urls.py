@@ -1,13 +1,10 @@
 from django.contrib import admin
 from django.urls import path, include
-from tracker import views
+from django.shortcuts import redirect
 
 urlpatterns = [
+    path('', lambda request: redirect('home')),  # Redirect root to home view
     path('admin/', admin.site.urls),
-    path('', views.home, name='home'),
-    path('accounts/', include('django.contrib.auth.urls')),  # Include auth URLs
-    path('accounts/signup/', views.signup, name='signup'),
-    path('generate/', views.generate_link, name='generate_link'),
-    path('analytics/<str:short_id>/', views.analytics, name='analytics'),
-    path('<str:short_id>/', views.redirect_link, name='redirect_link'),
+    path('accounts/', include('django.contrib.auth.urls')),
+    path('tracker/', include('tracker.urls')),
 ]

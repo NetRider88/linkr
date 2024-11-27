@@ -1,0 +1,24 @@
+{% extends 'tracker/base.html' %}
+{% block content %}
+<h2>Your Custom Domains</h2>
+<a href="{% url 'add_custom_domain' %}" class="btn btn-primary mb-3">Add New Domain</a>
+<table class="table">
+    <tr>
+        <th>Domain</th>
+        <th>Verified</th>
+        <th>Actions</th>
+    </tr>
+    {% for domain in domains %}
+    <tr>
+        <td>{{ domain.domain }}</td>
+        <td>{{ domain.verified }}</td>
+        <td>
+            {% if not domain.verified %}
+            <a href="{% url 'resend_verification_email' domain.id %}" class="btn btn-sm btn-warning">Resend Verification Email</a>
+            {% endif %}
+            <a href="{% url 'delete_domain' domain.id %}" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure you want to delete this domain?');">Delete</a>
+        </td>
+    </tr>
+    {% endfor %}
+</table>
+{% endblock %}

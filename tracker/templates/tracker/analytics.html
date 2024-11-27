@@ -3,112 +3,99 @@
 {% block content %}
 <div class="card">
     <div class="card-header">
-        <h2>Link Analytics</h2>
+        <h2>Analytics for {{ link.short_id }}</h2>
+        <p class="text-muted mb-0">{{ link.name|default:"" }}</p>
     </div>
     <div class="card-body">
-        <form method="get" class="mb-4">
-            <div class="row g-3 align-items-end">
-                <div class="col-md-4">
-                    <label for="short_id" class="form-label">Select Link:</label>
-                    <select id="short_id" name="short_id" class="form-select">
-                        <option value="">Choose a link...</option>
-                        {% for link in links %}
-                            <option value="{{ link.short_id }}" 
-                                {% if selected_link and link.short_id == selected_link.short_id %}selected{% endif %}>
-                                {{ link.name|default:link.short_id }} ({{ link.short_id }})
-                            </option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="col-md-3">
-                    <label for="start_date" class="form-label">Start Date:</label>
-                    <input type="datetime-local" id="start_date" name="start_date" class="form-control">
-                </div>
-                <div class="col-md-3">
-                    <label for="end_date" class="form-label">End Date:</label>
-                    <input type="datetime-local" id="end_date" name="end_date" class="form-control">
-                </div>
-                <div class="col-md-2">
-                    <button type="submit" class="btn btn-primary">Filter</button>
-                </div>
-            </div>
-        </form>
-
-        {% if selected_link %}
-            <!-- Overview Stats -->
-            <div class="row mb-4">
-                <div class="col-md-4">
-                    <div class="card bg-primary text-white">
-                        <div class="card-body">
-                            <h5 class="card-title">Total Clicks</h5>
-                            <h2 class="mb-0">{{ clicks.count }}</h2>
-                        </div>
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Total Clicks</h5>
+                        <p class="card-text display-4">{{ total_clicks }}</p>
                     </div>
                 </div>
-                <div class="col-md-8">
-                    <div class="card">
-                        <div class="card-body">
-                            <h5>Link Details</h5>
-                            <p><strong>Original URL:</strong> <a href="{{ selected_link.original_url }}">{{ selected_link.original_url }}</a></p>
-                            <p><strong>Short URL:</strong> {{ request.scheme }}://{{ request.get_host }}/{{ selected_link.short_id }}/</p>
+            </div>
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Unique Clicks</h5>
+                        <p class="card-text display-4">{{ unique_clicks }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {% if variable_stats %}
+        <div class="mb-4">
+            <h3>Variable Statistics</h3>
+            {% for stat in variable_stats %}
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h5 class="mb-0">{{ stat.name }}</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Total Values Tracked:</strong> {{ stat.total_values }}</p>
+                            <p><strong>Unique Values:</strong> {{ stat.unique_values }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Top Values:</h6>
+                            <ul class="list-unstyled">
+                                {% for value in stat.top_values %}
+                                <li>{{ value.value }} ({{ value.count }} clicks)</li>
+                                {% endfor %}
+                            </ul>
                         </div>
                     </div>
                 </div>
             </div>
-
-            <!-- Charts -->
-            <div class="row">
-                <div class="col-md-6">
-                    <div class="card">
-                        <div class="card-header">
-                            <h5>Clicks by Country</h5>
-                        </div>
-                        <div class="card-body">
-                            <div id="bar-chart"></div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-6">
-                    <div class="card">
-                        <div class="card-header">
-                            <h5>Click Details</h5>
-                        </div>
-                        <div class="card-body">
-                            <div class="table-responsive">
-                                <table class="table table-striped">
-                                    <thead>
-                                        <tr>
-                                            <th>Timestamp</th>
-                                            <th>Country</th>
-                                            <th>IP Address</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {% for click in clicks %}
-                                        <tr>
-                                            <td>{{ click.timestamp }}</td>
-                                            <td>{{ click.country }}</td>
-                                            <td>{{ click.ip_address }}</td>
-                                        </tr>
-                                        {% endfor %}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-            <script>
-                {% if graph_json %}
-                    var graphData = {{ graph_json|safe }};
-                    Plotly.newPlot('bar-chart', graphData.data, graphData.layout);
-                {% else %}
-                    document.getElementById('bar-chart').innerText = 'No data available';
-                {% endif %}
-            </script>
+            {% endfor %}
+        </div>
         {% endif %}
+
+        <div id="analytics-graphs" style="width: 100%; height: 1200px;"></div>
+
+        <div class="table-responsive mt-4">
+            <h4>Click Details</h4>
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Timestamp</th>
+                        <th>Country</th>
+                        <th>Device</th>
+                        {% for variable in link.variables.all %}
+                        <th>{{ variable.name }}</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for click in clicks %}
+                    <tr>
+                        <td>{{ click.timestamp }}</td>
+                        <td>{{ click.country }}</td>
+                        <td>{{ click.device_type }}</td>
+                        {% for variable in link.variables.all %}
+                        <td>
+                            {% for var_value in click.variables.all %}
+                                {% if var_value.variable == variable %}
+                                    {{ var_value.value }}
+                                {% endif %}
+                            {% endfor %}
+                        </td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
+
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+<script>
+    var graphData = {{ graph_json|safe }};
+    Plotly.newPlot('analytics-graphs', graphData.data, graphData.layout);
+</script>
 {% endblock %}

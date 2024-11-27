@@ -1,0 +1,136 @@
+{% extends 'tracker/base.html' %}
+{% block content %}
+<div class="container">
+    <h2 class="mb-4">Create Tracked Link</h2>
+    <div class="card">
+        <div class="card-body">
+            <form method="post" id="linkForm">
+                {% csrf_token %}
+                <div class="mb-3">
+                    <label for="{{ form.original_url.id_for_label }}" class="form-label">Original URL</label>
+                    {{ form.original_url }}
+                    {% if form.original_url.errors %}
+                        <div class="alert alert-danger">{{ form.original_url.errors }}</div>
+                    {% endif %}
+                    <div class="form-text">Enter your base URL (e.g., google.com). Variables will be automatically added as URL parameters.</div>
+                </div>
+
+                <div class="mb-3">
+                    <label for="{{ form.name.id_for_label }}" class="form-label">Link Name (Optional)</label>
+                    {{ form.name }}
+                    {% if form.name.errors %}
+                        <div class="alert alert-danger">{{ form.name.errors }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label d-flex justify-content-between align-items-center">
+                        Variables to Track
+                        <button type="button" class="btn btn-sm btn-primary" id="addVariableBtn">
+                            <i class="bi bi-plus-lg"></i> Add Variable
+                        </button>
+                    </label>
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i> Variables will be automatically added to your URL as parameters. For example:
+                        <br>
+                        If URL = google.com and Variable = vendor_name with Braze placeholder is the custom_attribute
+                        <br>
+                        Final URL will be: google.com?vendor_name=custom_attribute
+                    </div>
+                    <div id="variablesContainer">
+                        <!-- Template for variable row that will be cloned by JavaScript -->
+                        <template id="variableRowTemplate">
+                            <div class="variable-row row mb-2">
+                                <div class="col">
+                                    <input type="text" 
+                                           name="variable_names[]" 
+                                           class="form-control" 
+                                           placeholder="Variable Name (e.g., vendor_name)" />
+                                    <div class="form-text">This will be the URL parameter name</div>
+                                </div>
+                                <div class="col">
+                                    <input type="text" 
+                                           name="variable_placeholders[]" 
+                                           class="form-control" 
+                                           placeholder="Braze Placeholder (e.g., custom_attribute.${vendor_name})" />
+                                    <div class="form-text">This will be replaced by the actual value when sent through Braze</div>
+                                </div>
+                                <div class="col-auto">
+                                    <button type="button" class="btn btn-danger remove-variable">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary">Generate Link</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('linkForm');
+    const container = document.getElementById('variablesContainer');
+    const addButton = document.getElementById('addVariableBtn');
+    const template = document.getElementById('variableRowTemplate');
+
+    // Add initial row
+    addVariableRow();
+
+    function validatePlaceholder(name, placeholder) {
+        // Define the format parts
+        const formatStart = "{{custom_attribute.${";
+        const formatEnd = "}}";
+        
+        if (!placeholder.startsWith(formatStart) || !placeholder.endsWith(formatEnd)) {
+            alert(`Invalid placeholder format for "${name}". Use format: custom_attribute.${name}`);
+            return false;
+        }
+
+        return true;
+    }
+
+    function addVariableRow() {
+        const clone = template.content.cloneNode(true);
+        container.appendChild(clone);
+    }
+
+    addButton.addEventListener('click', addVariableRow);
+
+    container.addEventListener('click', function(e) {
+        if (e.target.closest('.remove-variable')) {
+            const rows = container.querySelectorAll('.variable-row');
+            if (rows.length > 1) {  // Keep at least one row
+                e.target.closest('.variable-row').remove();
+            }
+        }
+    });
+
+    form.addEventListener('submit', function(e) {
+        const names = document.getElementsByName('variable_names[]');
+        const placeholders = document.getElementsByName('variable_placeholders[]');
+        let isValid = true;
+
+        for (let i = 0; i < names.length; i++) {
+            const name = names[i].value.trim();
+            const placeholder = placeholders[i].value.trim();
+            
+            if (name && placeholder) {
+                if (!validatePlaceholder(name, placeholder)) {
+                    isValid = false;
+                    break;
+                }
+            }
+        }
+
+        if (!isValid) {
+            e.preventDefault();
+        }
+    });
+});
+</script>
+{% endblock %}
