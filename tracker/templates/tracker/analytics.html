@@ -26,6 +26,16 @@
             </div>
         </div>
 
+        <!-- Add export buttons -->
+        <div class="btn-group mb-4">
+            <button class="btn btn-outline-primary" onclick="window.location.href='{% url 'export_analytics' link.short_id %}?format=csv'">
+                <i class="bi bi-file-earmark-text"></i> Download CSV
+            </button>
+            <button class="btn btn-outline-success" onclick="window.location.href='{% url 'export_analytics' link.short_id %}?format=excel'">
+                <i class="bi bi-file-earmark-excel"></i> Download Excel
+            </button>
+        </div>
+
         {% if variable_stats %}
         <div class="mb-4">
             <h3>Variable Statistics</h3>

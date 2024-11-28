@@ -11,7 +11,7 @@ from django.utils import timezone
 from django.http import Http404, HttpResponse
 from django.utils.crypto import get_random_string
 import plotly.express as px
-from django.db.models import Count
+from django.db.models import Count, Sum
 from django.utils.dateparse import parse_datetime
 import pandas as pd
 from django.contrib.auth import login
@@ -23,6 +23,10 @@ import string
 import random
 import hashlib
 from urllib.parse import quote_plus, unquote_plus, urlparse, parse_qs, urlencode
+import csv
+import pandas as pd
+from django.http import HttpResponse
+from datetime import datetime
 
 def home(request):
     if request.user.is_authenticated:
@@ -30,7 +34,13 @@ def home(request):
         for link in links:
             link.total_clicks = link.clicks.count()
             link.save()
-        return render(request, 'tracker/home.html', {'links': links})
+        links = Link.objects.filter(user=request.user)
+        total_clicks = links.aggregate(Sum('total_clicks'))['total_clicks__sum'] or 0
+        
+        return render(request, 'tracker/home.html', {
+            'links': links,
+            'total_clicks': total_clicks
+        })
     else:
         return render(request, 'tracker/home_public.html')
 
@@ -328,3 +338,42 @@ def profile(request):
     else:
         form = UserProfileForm(instance=request.user)
     return render(request, 'tracker/profile.html', {'form': form})
+
+def export_analytics(request, short_id):
+    link = get_object_or_404(Link, short_id=short_id, user=request.user)
+    clicks = Click.objects.filter(link=link).select_related('ip_info')
+
+    # Prepare data
+    data = []
+    for click in clicks:
+        row = {
+            'Timestamp': click.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+            'Country': click.ip_info.country if click.ip_info else 'Unknown',
+            'City': click.ip_info.city if click.ip_info else 'Unknown',
+            'IP': click.ip_address,
+        }
+        
+        # Add variables if any
+        click_vars = ClickVariable.objects.filter(click=click)
+        for var in click_vars:
+            row[f'Variable_{var.variable.name}'] = var.value
+            
+        data.append(row)
+
+    if request.GET.get('format') == 'csv':
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = f'attachment; filename="link_analytics_{short_id}_{datetime.now().strftime("%Y%m%d")}.csv"'
+        
+        writer = csv.DictWriter(response, fieldnames=data[0].keys() if data else [])
+        writer.writeheader()
+        writer.writerows(data)
+        
+        return response
+    
+    else:  # Excel format
+        df = pd.DataFrame(data)
+        response = HttpResponse(content_type='application/vnd.ms-excel')
+        response['Content-Disposition'] = f'attachment; filename="link_analytics_{short_id}_{datetime.now().strftime("%Y%m%d")}.xlsx"'
+        
+        df.to_excel(response, index=False, engine='openpyxl')
+        return response
