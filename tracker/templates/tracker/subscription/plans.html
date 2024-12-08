@@ -1,0 +1,218 @@
+{% extends 'tracker/base.html' %}
+
+{% block content %}
+<div class="container py-5">
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="text-center mb-5">
+        <h1 class="display-4">Choose Your Plan</h1>
+        <p class="lead text-muted">Select the plan that best fits your needs</p>
+    </div>
+
+    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-4 g-4 mb-5">
+        {% for tier in tiers %}
+        <div class="col">
+            <div class="card h-100 shadow-sm {% if current_subscription.tier == tier %}border-primary{% endif %}">
+                {% if current_subscription.tier == tier %}
+                <div class="card-header bg-primary text-white">
+                    <span class="badge bg-white text-primary">Current Plan</span>
+                </div>
+                {% endif %}
+                <div class="card-body">
+                    <h5 class="card-title">{{ tier.name }}</h5>
+                    <h2 class="card-subtitle mb-2">
+                        ${{ tier.price }}<small class="text-muted">/mo</small>
+                    </h2>
+                    {% if tier.yearly_price > 0 %}
+                    <p class="text-muted small">
+                        or ${{ tier.monthly_equivalent|floatformat:2 }}/mo billed yearly<br>
+                        <span class="text-success">Save ${{ tier.yearly_savings }} yearly</span>
+                    </p>
+                    {% endif %}
+                    <hr>
+                    <ul class="list-unstyled feature-list">
+                        <li class="mb-3">
+                            <i class="bi bi-link-45deg text-primary me-2"></i>
+                            <strong>{{ tier.max_links }}</strong> Links
+                        </li>
+                        <li class="mb-3">
+                            <i class="bi bi-graph-up-arrow text-primary me-2"></i>
+                            <strong>{{ tier.max_clicks }}</strong> Monthly Clicks
+                        </li>
+                        <li class="mb-3">
+                            <i class="bi bi-clock-history text-primary me-2"></i>
+                            <strong>{{ tier.retention_days }}</strong> Days Data Retention
+                        </li>
+                        {% if tier.max_variables > 0 %}
+                        <li class="mb-3">
+                            <i class="bi bi-braces text-primary me-2"></i>
+                            <strong>{{ tier.max_variables }}</strong> Custom Variables
+                        </li>
+                        {% endif %}
+                        {% if tier.allow_export %}
+                        <li class="mb-3">
+                            <i class="bi bi-download text-primary me-2"></i>
+                            Data Export
+                        </li>
+                        {% endif %}
+                        {% if tier.name == 'PRO' or tier.name == 'BUSINESS' or tier.name == 'ENTERPRISE' %}
+                        <li class="mb-3">
+                            <i class="bi bi-bar-chart text-primary me-2"></i>
+                            Advanced Analytics
+                        </li>
+                        {% endif %}
+                        {% if tier.name == 'BUSINESS' or tier.name == 'ENTERPRISE' %}
+                        <li class="mb-3">
+                            <i class="bi bi-gear text-primary me-2"></i>
+                            API Access
+                        </li>
+                        {% endif %}
+                        {% if tier.name == 'ENTERPRISE' %}
+                        <li class="mb-3">
+                            <i class="bi bi-people text-primary me-2"></i>
+                            Team Collaboration
+                        </li>
+                        <li class="mb-3">
+                            <i class="bi bi-shield-check text-primary me-2"></i>
+                            Priority Support
+                        </li>
+                        {% endif %}
+                    </ul>
+
+                    <style>
+                    .feature-list li {
+                        display: flex;
+                        align-items: center;
+                    }
+                    .feature-list i {
+                        font-size: 1.2rem;
+                        width: 1.5rem;
+                        text-align: center;
+                    }
+                    .feature-list strong {
+                        color: var(--bs-primary);
+                    }
+                    </style>
+                </div>
+                <div class="card-footer bg-transparent border-0 text-center pb-4">
+                    {% if user.is_authenticated %}
+                        {% if current_subscription.tier == tier %}
+                            <button class="btn btn-outline-primary" disabled>Current Plan</button>
+                        {% else %}
+                            {% if tier.price == 0 %}
+                                <a href="{% url 'create_subscription' tier.id %}" class="btn btn-primary">Select Free Plan</a>
+                            {% else %}
+                                {% if paypal_configured %}
+                                    <div class="btn-group">
+                                        <button class="btn btn-primary subscribe-button" 
+                                                data-tier-id="{{ tier.id }}" 
+                                                data-billing="monthly">
+                                            Select Monthly
+                                        </button>
+                                        <button class="btn btn-outline-primary subscribe-button" 
+                                                data-tier-id="{{ tier.id }}" 
+                                                data-billing="yearly">
+                                            Select Yearly
+                                        </button>
+                                    </div>
+                                    <div id="paypal-button-{{ tier.id }}" class="mt-3" style="display: none;"></div>
+                                {% else %}
+                                    <button class="btn btn-primary" disabled>Currently Unavailable</button>
+                                {% endif %}
+                            {% endif %}
+                        {% endif %}
+                    {% else %}
+                        <a href="{% url 'signup' %}?tier={{ tier.id }}" class="btn btn-primary">Sign Up</a>
+                        <div class="mt-2">
+                            <small class="text-muted">Already have an account? <a href="{% url 'login' %}">Log in</a></small>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+{% if paypal_configured %}
+<script src="https://www.paypal.com/sdk/js?client-id={{ paypal_client_id }}&currency=USD&intent=subscription"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const buttons = document.querySelectorAll('.subscribe-button');
+    let activePayPalContainer = null;
+    
+    buttons.forEach(button => {
+        button.addEventListener('click', async function() {
+            const tierId = this.dataset.tierId;
+            const billing = this.dataset.billing;
+            const paypalContainer = document.getElementById(`paypal-button-${tierId}`);
+            
+            // Hide any previously shown PayPal buttons
+            if (activePayPalContainer && activePayPalContainer !== paypalContainer) {
+                activePayPalContainer.style.display = 'none';
+            }
+            
+            try {
+                const response = await fetch(`/tracker/subscription/create/${tierId}/?billing=${billing}`);
+                const data = await response.json();
+                
+                if (data.error) {
+                    alert(data.error);
+                    return;
+                }
+
+                // Clear and show the PayPal container
+                paypalContainer.innerHTML = '';
+                paypalContainer.style.display = 'block';
+                activePayPalContainer = paypalContainer;
+
+                paypal.Buttons({
+                    style: {
+                        shape: 'rect',
+                        color: 'blue',
+                        layout: 'vertical',
+                        label: 'subscribe'
+                    },
+                    createOrder: function(data, actions) {
+                        return actions.order.create({
+                            purchase_units: [{
+                                description: data.description,
+                                amount: {
+                                    value: data.amount,
+                                    currency_code: 'USD'
+                                }
+                            }]
+                        });
+                    },
+                    onApprove: function(data, actions) {
+                        return actions.order.capture().then(function(details) {
+                            window.location.href = '/tracker/subscription/success/';
+                        });
+                    },
+                    onError: function(err) {
+                        console.error('PayPal Error:', err);
+                        alert('There was an error processing your subscription. Please try again.');
+                        paypalContainer.style.display = 'none';
+                    }
+                }).render(paypalContainer);
+                
+            } catch (error) {
+                console.error('Error:', error);
+                alert('There was an error processing your request. Please try again.');
+                if (paypalContainer) {
+                    paypalContainer.style.display = 'none';
+                }
+            }
+        });
+    });
+});
+</script>
+{% endif %}
+{% endblock %}

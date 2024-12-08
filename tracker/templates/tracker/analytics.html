@@ -1,111 +1,453 @@
 {% extends 'tracker/base.html' %}
+{% load static %}
+{% load custom_filters %}
 
 {% block content %}
-<div class="card">
-    <div class="card-header">
-        <h2>Analytics for {{ link.short_id }}</h2>
-        <p class="text-muted mb-0">{{ link.name|default:"" }}</p>
+<div class="container py-5">
+    <div class="row mb-4">
+        <div class="col">
+            <h2>Analytics for {{ link.short_id }}</h2>
+            <p class="text-muted">
+                Original URL: <a href="{{ link.original_url }}" target="_blank">{{ link.original_url }}</a>
+            </p>
+        </div>
     </div>
-    <div class="card-body">
-        <div class="row mb-4">
-            <div class="col-md-6">
-                <div class="card">
-                    <div class="card-body">
-                        <h5 class="card-title">Total Clicks</h5>
-                        <p class="card-text display-4">{{ total_clicks }}</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-6">
-                <div class="card">
-                    <div class="card-body">
-                        <h5 class="card-title">Unique Clicks</h5>
-                        <p class="card-text display-4">{{ unique_clicks }}</p>
-                    </div>
-                </div>
-            </div>
-        </div>
 
-        <!-- Add export buttons -->
-        <div class="btn-group mb-4">
-            <button class="btn btn-outline-primary" onclick="window.location.href='{% url 'export_analytics' link.short_id %}?format=csv'">
-                <i class="bi bi-file-earmark-text"></i> Download CSV
-            </button>
-            <button class="btn btn-outline-success" onclick="window.location.href='{% url 'export_analytics' link.short_id %}?format=excel'">
-                <i class="bi bi-file-earmark-excel"></i> Download Excel
-            </button>
-        </div>
-
-        {% if variable_stats %}
-        <div class="mb-4">
-            <h3>Variable Statistics</h3>
-            {% for stat in variable_stats %}
-            <div class="card mb-3">
-                <div class="card-header">
-                    <h5 class="mb-0">{{ stat.name }}</h5>
-                </div>
+    <!-- Basic Stats (Available for all plans) -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-6 col-lg-3">
+            <div class="card shadow-sm h-100">
                 <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <p><strong>Total Values Tracked:</strong> {{ stat.total_values }}</p>
-                            <p><strong>Unique Values:</strong> {{ stat.unique_values }}</p>
-                        </div>
-                        <div class="col-md-6">
-                            <h6>Top Values:</h6>
-                            <ul class="list-unstyled">
-                                {% for value in stat.top_values %}
-                                <li>{{ value.value }} ({{ value.count }} clicks)</li>
-                                {% endfor %}
-                            </ul>
-                        </div>
-                    </div>
+                    <h6 class="card-subtitle mb-2 text-muted">Total Clicks</h6>
+                    <h2 class="card-title mb-0">{{ total_clicks }}</h2>
                 </div>
             </div>
-            {% endfor %}
+        </div>
+        
+        <div class="col-md-6 col-lg-3">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-2 text-muted">Last 30 Days</h6>
+                    <h2 class="card-title mb-0">{{ monthly_clicks }}</h2>
+                </div>
+            </div>
+        </div>
+
+        {% if user.subscription.tier.name != 'FREE' and user.subscription.tier.name != 'PRO' %}
+        <!-- Advanced Stats (Business & Enterprise Only) -->
+        <div class="col-md-6 col-lg-3">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-2 text-muted">Unique Visitors</h6>
+                    <h2 class="card-title mb-0">{{ unique_visitors }}</h2>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6 col-lg-3">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-2 text-muted">Avg. Daily Clicks</h6>
+                    <h2 class="card-title mb-0">{{ avg_daily_clicks }}</h2>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <!-- Blurred Stats with CTA -->
+        <div class="col-md-6 col-lg-3">
+            <div class="card shadow-sm h-100 position-relative">
+                <div class="card-body blur-sm">
+                    <h6 class="card-subtitle mb-2 text-muted">Unique Visitors</h6>
+                    <h2 class="card-title mb-0">---</h2>
+                </div>
+                <div class="upgrade-overlay">
+                    <a href="{% url 'subscription_plans' %}" class="btn btn-sm btn-primary">Upgrade to Business</a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6 col-lg-3">
+            <div class="card shadow-sm h-100 position-relative">
+                <div class="card-body blur-sm">
+                    <h6 class="card-subtitle mb-2 text-muted">Avg. Daily Clicks</h6>
+                    <h2 class="card-title mb-0">---</h2>
+                </div>
+                <div class="upgrade-overlay">
+                    <a href="{% url 'subscription_plans' %}" class="btn btn-sm btn-primary">Upgrade to Business</a>
+                </div>
+            </div>
         </div>
         {% endif %}
+    </div>
 
-        <div id="analytics-graphs" style="width: 100%; height: 1200px;"></div>
+    <!-- Graphs Section -->
+    <div class="row g-4 mb-4">
+        <!-- Clicks Over Time -->
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Clicks Over Time</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="clicksChart" height="100"></canvas>
+                </div>
+            </div>
+        </div>
 
-        <div class="table-responsive mt-4">
-            <h4>Click Details</h4>
-            <table class="table table-striped">
-                <thead>
-                    <tr>
-                        <th>Timestamp</th>
-                        <th>Country</th>
-                        <th>Device</th>
-                        {% for variable in link.variables.all %}
-                        <th>{{ variable.name }}</th>
-                        {% endfor %}
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for click in clicks %}
-                    <tr>
-                        <td>{{ click.timestamp }}</td>
-                        <td>{{ click.country }}</td>
-                        <td>{{ click.device_type }}</td>
-                        {% for variable in link.variables.all %}
-                        <td>
-                            {% for var_value in click.variables.all %}
-                                {% if var_value.variable == variable %}
-                                    {{ var_value.value }}
-                                {% endif %}
-                            {% endfor %}
-                        </td>
-                        {% endfor %}
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+        <!-- Device Distribution -->
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Device Distribution</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="deviceChart" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Clicks by Day of Week -->
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Clicks by Day of Week</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="weekdayChart" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Clicks by Hour -->
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Clicks by Hour</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="hourlyChart" height="100"></canvas>
+                </div>
+            </div>
         </div>
     </div>
+
+    {% if link_variables %}
+    <!-- Variables Statistics -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-white">
+            <h5 class="mb-0">Variables Statistics</h5>
+        </div>
+        <div class="card-body">
+            <!-- Individual Variable Stats -->
+            <div class="row g-4 mb-4">
+                {% for var in link_variables %}
+                <div class="col-md-4">
+                    {% with stats=variable_stats|get_item:var.name %}
+                    <div class="border rounded p-3">
+                        <h6 class="mb-2">{{ var.name }}</h6>
+                        <small class="text-muted d-block mb-2">Placeholder: {{ var.placeholder }}</small>
+                        <div class="text-muted">Total Usage: {{ stats.total_usage }}</div>
+                    </div>
+                    {% endwith %}
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- Combined Variables Table -->
+            <h6 class="mb-3">Variable Values Distribution</h6>
+            <div class="table-responsive">
+                <table class="table table-sm table-hover">
+                    <thead>
+                        <tr>
+                            {% for var in link_variables %}
+                            <th>{{ var.name }}</th>
+                            <th class="text-end">Count</th>
+                            <th class="text-end">%</th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for var in link_variables %}
+                        {% with stats=variable_stats|get_item:var.name %}
+                        {% for value in stats.top_values %}
+                        <tr>
+                            <td>{{ value.value }}</td>
+                            <td class="text-end">{{ value.count }}</td>
+                            <td class="text-end">{{ value.count|percentage:stats.total_usage }}%</td>
+                        </tr>
+                        {% endfor %}
+                        {% endwith %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Click History -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Click History</h5>
+            <span class="text-muted small">Last 100 clicks</span>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Location</th>
+                            <th>Device</th>
+                            {% if user.subscription.tier.name != 'FREE' and user.subscription.tier.name != 'PRO' %}
+                            <th>Referrer</th>
+                            <th>Browser</th>
+                            {% endif %}
+                            {% if link_variables %}
+                            {% for var in link_variables %}
+                            <th>{{ var.name }}</th>
+                            {% endfor %}
+                            {% endif %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for click in clicks %}
+                        <tr>
+                            <td>{{ click.timestamp|date:"M d, Y H:i" }}</td>
+                            <td>{{ click.country|default:"Unknown" }}</td>
+                            <td>
+                                <span class="badge bg-{% if click.device_type == 'Desktop' %}primary{% elif click.device_type == 'Mobile' %}success{% else %}info{% endif %}">
+                                    {{ click.device_type|default:"Unknown" }}
+                                </span>
+                            </td>
+                            {% if user.subscription.tier.name != 'FREE' and user.subscription.tier.name != 'PRO' %}
+                            <td>{{ click.referrer|default:"Direct" }}</td>
+                            <td>{{ click.browser|default:"Unknown" }}</td>
+                            {% endif %}
+                            {% if link_variables %}
+                            {% for var in link_variables %}
+                            <td>{{ click.variables|get_item:var.name }}</td>
+                            {% endfor %}
+                            {% endif %}
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="{% if link_variables %}{{ 5|add:link_variables|length }}{% else %}5{% endif %}" class="text-center">No clicks recorded yet</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    {% if user.subscription.tier.allow_export %}
+    <!-- Export Options -->
+    <div class="card shadow-sm">
+        <div class="card-header bg-white">
+            <h5 class="mb-0">Export Data</h5>
+        </div>
+        <div class="card-body">
+            <form method="post" action="{% url 'export_analytics' link.short_id %}">
+                {% csrf_token %}
+                <div class="row align-items-end">
+                    <div class="col-md-4">
+                        <label class="form-label">Format</label>
+                        <select name="format" class="form-select">
+                            <option value="csv">CSV</option>
+                            {% if user.subscription.tier.name == 'ENTERPRISE' %}
+                            <option value="json">JSON</option>
+                            <option value="excel">Excel</option>
+                            {% endif %}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-download"></i> Export
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% else %}
+    <!-- Export CTA -->
+    <div class="card shadow-sm">
+        <div class="card-header bg-white">
+            <h5 class="mb-0">Export Data</h5>
+        </div>
+        <div class="card-body text-center">
+            <p class="mb-3">Upgrade to PRO or higher to export your analytics data</p>
+            <a href="{% url 'subscription_plans' %}" class="btn btn-primary">
+                <i class="bi bi-arrow-up-circle"></i> Upgrade Now
+            </a>
+        </div>
+    </div>
+    {% endif %}
 </div>
 
-<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+<style>
+.blur-sm {
+    filter: blur(4px);
+    pointer-events: none;
+}
+
+.upgrade-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255,255,255,0.9);
+}
+
+.card {
+    overflow: hidden;
+}
+
+.badge {
+    font-weight: 500;
+    padding: 0.5em 0.75em;
+}
+
+.table-sm td, .table-sm th {
+    padding: 0.5rem;
+}
+</style>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    var graphData = {{ graph_json|safe }};
-    Plotly.newPlot('analytics-graphs', graphData.data, graphData.layout);
+document.addEventListener('DOMContentLoaded', function() {
+    // Parse the JSON data
+    const datesLabels = JSON.parse('{{ dates_labels|escapejs }}');
+    const clicksData = JSON.parse('{{ clicks_data|escapejs }}');
+    const deviceLabels = JSON.parse('{{ device_labels|escapejs }}');
+    const deviceData = JSON.parse('{{ device_data|escapejs }}');
+    const weekdayData = JSON.parse('{{ weekday_data|escapejs }}');
+    const hourlyData = JSON.parse('{{ hourly_data|escapejs }}');
+
+    // Clicks Over Time Chart
+    new Chart(document.getElementById('clicksChart'), {
+        type: 'line',
+        data: {
+            labels: datesLabels,
+            datasets: [{
+                label: 'Clicks',
+                data: clicksData,
+                backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                borderColor: 'rgba(54, 162, 235, 1)',
+                borderWidth: 1,
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        precision: 0
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                }
+            }
+        }
+    });
+
+    // Device Distribution Chart
+    new Chart(document.getElementById('deviceChart'), {
+        type: 'doughnut',
+        data: {
+            labels: deviceLabels,
+            datasets: [{
+                data: deviceData,
+                backgroundColor: [
+                    'rgba(54, 162, 235, 0.8)',
+                    'rgba(75, 192, 192, 0.8)',
+                    'rgba(255, 206, 86, 0.8)'
+                ],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+
+    // Weekday Chart
+    new Chart(document.getElementById('weekdayChart'), {
+        type: 'bar',
+        data: {
+            labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+            datasets: [{
+                data: weekdayData,
+                backgroundColor: 'rgba(153, 102, 255, 0.8)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        precision: 0
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                }
+            }
+        }
+    });
+
+    // Hourly Chart
+    new Chart(document.getElementById('hourlyChart'), {
+        type: 'bar',
+        data: {
+            labels: Array.from({length: 24}, (_, i) => `${String(i).padStart(2, '0')}:00`),
+            datasets: [{
+                data: hourlyData,
+                backgroundColor: 'rgba(255, 159, 64, 0.8)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        precision: 0
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                }
+            }
+        }
+    });
+});
 </script>
 {% endblock %}

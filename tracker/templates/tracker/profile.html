@@ -1,75 +1,177 @@
 {% extends 'tracker/base.html' %}
 
 {% block content %}
-<div class="container mt-5">
-    <h2 class="mb-4">Profile</h2>
-    <div class="card">
-        <div class="card-body">
-            <h5 class="card-title">Profile Details</h5>
-            <p class="card-text"><strong>First Name:</strong> {{ request.user.first_name }}</p>
-            <p class="card-text"><strong>Last Name:</strong> {{ request.user.last_name }}</p>
-            <p class="card-text"><strong>Email:</strong> {{ request.user.email }}</p>
-            <button class="btn btn-primary" onclick="toggleEdit()">Edit Profile</button>
+<div class="container py-5">
+    <div class="row">
+        <!-- Profile Information -->
+        <div class="col-md-6 mb-4">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="h4 mb-0">Profile Information</h3>
+                </div>
+                <div class="card-body">
+                    <form method="post" action="{% url 'update_profile' %}">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label class="form-label">Email Address</label>
+                            <input type="email" class="form-control" value="{{ user.email }}" readonly>
+                            <small class="text-muted">Email is used as your username</small>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">First Name</label>
+                            <input type="text" name="first_name" class="form-control" value="{{ user.first_name }}">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Last Name</label>
+                            <input type="text" name="last_name" class="form-control" value="{{ user.last_name }}">
+                        </div>
+                        <button type="submit" class="btn btn-primary">Update Profile</button>
+                    </form>
+                </div>
+            </div>
         </div>
-    </div>
 
-    <div class="card mt-4" id="edit-profile-form" style="display: none;">
-        <div class="card-body">
-            <h5 class="card-title">Edit Profile</h5>
-            <form method="post" class="needs-validation" novalidate>
-                {% csrf_token %}
-                <div class="mb-3">
-                    <label for="id_first_name" class="form-label">First Name</label>
-                    <input type="text" class="form-control" id="id_first_name" name="first_name" value="{{ form.first_name.value }}" required>
-                    <div class="invalid-feedback">
-                        Please provide your first name.
+        <!-- Subscription Information -->
+        <div class="col-md-6 mb-4">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h3 class="h4 mb-0">Subscription Details</h3>
+                    <a href="{% url 'subscription_history' %}" class="btn btn-light btn-sm">
+                        <i class="bi bi-clock-history"></i> Billing History
+                    </a>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="border rounded p-3">
+                                <h5 class="mb-1">Current Plan</h5>
+                                <p class="h4 mb-0">{{ user.subscription.tier.name }}</p>
+                                {% if user.subscription.tier.price > 0 %}
+                                <small class="text-muted">${{ user.subscription.tier.price }}/month</small>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="border rounded p-3">
+                                <h5 class="mb-1">Monthly Clicks</h5>
+                                <p class="h4 mb-0">{{ monthly_clicks }} / {{ user.subscription.tier.max_clicks }}</p>
+                                <div class="progress mt-2" style="height: 5px">
+                                    <div class="progress-bar" role="progressbar" 
+                                        style="width: {% widthratio monthly_clicks user.subscription.tier.max_clicks 100 %}%"
+                                        aria-valuenow="{{ monthly_clicks }}" 
+                                        aria-valuemin="0" 
+                                        aria-valuemax="{{ user.subscription.tier.max_clicks }}"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="border rounded p-3">
+                                <h5 class="mb-1">Active Links</h5>
+                                <p class="h4 mb-0">{{ active_links_count }} / {{ user.subscription.tier.max_links }}</p>
+                                <div class="progress mt-2" style="height: 5px">
+                                    <div class="progress-bar" role="progressbar" 
+                                        style="width: {% widthratio active_links_count user.subscription.tier.max_links 100 %}%"
+                                        aria-valuenow="{{ active_links_count }}" 
+                                        aria-valuemin="0" 
+                                        aria-valuemax="{{ user.subscription.tier.max_links }}"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="border rounded p-3">
+                                <h5 class="mb-1">Total Clicks</h5>
+                                <p class="h4 mb-0">{{ total_clicks }}</p>
+                                <small class="text-muted">All time</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-4">
+                        {% if user.subscription.tier.name != 'ENTERPRISE' %}
+                        <a href="{% url 'subscription_plans' %}" class="btn btn-primary">
+                            <i class="bi bi-arrow-up-circle"></i> Upgrade Plan
+                        </a>
+                        {% endif %}
+                        {% if user.subscription.tier.price > 0 %}
+                        <button class="btn btn-outline-danger ms-2" data-bs-toggle="modal" data-bs-target="#cancelSubscriptionModal">
+                            <i class="bi bi-x-circle"></i> Cancel Subscription
+                        </button>
+                        {% endif %}
                     </div>
                 </div>
-                <div class="mb-3">
-                    <label for="id_last_name" class="form-label">Last Name</label>
-                    <input type="text" class="form-control" id="id_last_name" name="last_name" value="{{ form.last_name.value }}" required>
-                    <div class="invalid-feedback">
-                        Please provide your last name.
-                    </div>
+            </div>
+        </div>
+
+        <!-- Password Change -->
+        <div class="col-md-6">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="h4 mb-0">Change Password</h3>
                 </div>
-                <div class="mb-3">
-                    <label for="id_email" class="form-label">Email</label>
-                    <input type="email" class="form-control" id="id_email" name="email" value="{{ form.email.value }}" required>
-                    <div class="invalid-feedback">
-                        Please provide a valid email address.
-                    </div>
+                <div class="card-body">
+                    <form method="post" action="{% url 'change_password' %}">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label class="form-label">Current Password</label>
+                            <input type="password" name="current_password" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">New Password</label>
+                            <input type="password" name="new_password1" class="form-control" required>
+                            <small class="text-muted">Must be at least 8 characters long</small>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Confirm New Password</label>
+                            <input type="password" name="new_password2" class="form-control" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Change Password</button>
+                    </form>
                 </div>
-                <button type="submit" class="btn btn-primary">Save changes</button>
-                <button type="button" class="btn btn-secondary" onclick="toggleEdit()">Cancel</button>
-            </form>
+            </div>
         </div>
     </div>
 </div>
 
-<script>
-    function toggleEdit() {
-        var form = document.getElementById('edit-profile-form');
-        if (form.style.display === 'none') {
-            form.style.display = 'block';
-        } else {
-            form.style.display = 'none';
-        }
-    }
+<!-- Cancel Subscription Modal -->
+<div class="modal fade" id="cancelSubscriptionModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Cancel Subscription</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to cancel your subscription? You will:</p>
+                <ul>
+                    <li>Lose access to premium features</li>
+                    <li>Be downgraded to the free plan</li>
+                    <li>Keep your data for 30 days</li>
+                </ul>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Keep Subscription</button>
+                <form method="post" action="{% url 'subscription_cancel' %}" class="d-inline">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">Cancel Subscription</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
 
-    // Bootstrap validation
-    (function () {
-        'use strict'
-        var forms = document.querySelectorAll('.needs-validation')
-        Array.prototype.slice.call(forms)
-            .forEach(function (form) {
-                form.addEventListener('submit', function (event) {
-                    if (!form.checkValidity()) {
-                        event.preventDefault()
-                        event.stopPropagation()
-                    }
-                    form.classList.add('was-validated')
-                }, false)
-            })
-    })()
-</script>
+{% if messages %}
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 11">
+    {% for message in messages %}
+    <div class="toast show" role="alert">
+        <div class="toast-header {% if message.tags %}bg-{{ message.tags }}{% endif %} text-white">
+            <strong class="me-auto">Notification</strong>
+            <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+        </div>
+        <div class="toast-body">
+            {{ message }}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
 {% endblock %}

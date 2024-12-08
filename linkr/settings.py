@@ -13,7 +13,7 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 import os
 from pathlib import Path
 
-# GDAL Configuration
+# Remove these lines if GDAL is not needed elsewhere:
 if os.path.exists('/opt/homebrew/opt/gdal'):
     # M1/M2 Mac
     os.environ['GDAL_LIBRARY_PATH'] = '/opt/homebrew/opt/gdal/lib/libgdal.dylib'
@@ -26,21 +26,26 @@ elif os.path.exists('/usr/local/opt/gdal'):
 # Build paths inside the project like this: BASE_DIR / 'subdir'
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Add GeoIP path configuration
-GEOIP_PATH = BASE_DIR / 'geoip'
+
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-^1cbp@k5bm^g2z)asz35_b4q50bs&z@azt5re2w9vy$j%1-tj#"
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'your-default-secret-key-for-development')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv('DJANGO_DEBUG', 'True').lower() == 'true'
 
-ALLOWED_HOSTS = ['127.0.0.1', 'localhost', 'johnmos.pythonanywhere.com']
+ALLOWED_HOSTS = [
+    'links.ai-dnas.com',
+    'www.links.ai-dnas.com',
+    'johnmos.pythonanywhere.com',
+    'localhost',
+    '127.0.0.1',
+]
 
-DEFAULT_DOMAIN = 'JOhnMos.pythonanywhere.com'
+DEFAULT_DOMAIN = 'links.ai-dnas.com'
 
 # Application definition
 
@@ -52,6 +57,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'tracker',
+    'paypal.standard.ipn',
 ]
 
 # ... other settings ...
@@ -64,6 +70,9 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    'tracker.middleware.SubscriptionLimitMiddleware',
+    'tracker.middleware.SubscriptionVerificationMiddleware',
+    'tracker.middleware.PaymentVerificationMiddleware',
 ]
 
 ROOT_URLCONF = "linkr.urls"
@@ -91,9 +100,18 @@ WSGI_APPLICATION = "linkr.wsgi.application"
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
+    } if DEBUG else {
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': os.getenv('DB_NAME', 'johnmos$default'),
+        'USER': os.getenv('DB_USER', 'johnmos'),
+        'PASSWORD': os.getenv('DB_PASSWORD', ''),
+        'HOST': os.getenv('DB_HOST', 'johnmos.mysql.pythonanywhere-services.com'),
+        'OPTIONS': {
+            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
+        },
     }
 }
 
@@ -133,27 +151,121 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
 STATIC_URL = '/static/'
-STATIC_ROOT = BASE_DIR / 'static'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, 'static'),
+]
 
 MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+# GeoIP2 Settings
+GEOIP_PATH = os.path.join(BASE_DIR, 'geoip')
 
 # Default primary key field type
-# https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
-
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'home'
 LOGOUT_REDIRECT_URL = 'home'
-LOGIN_URL = 'login'
-
-GEOIP_PATH = BASE_DIR / 'geoip'
 
 # Email settings
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.dreamhost.com'  # e.g., 'smtp.gmail.com' for Gmail
-EMAIL_PORT = 587  # or 465 for SSL
-EMAIL_USE_TLS = True  # or EMAIL_USE_SSL = True for SSL
-EMAIL_HOST_USER = 'john@johnmos.com'
-EMAIL_HOST_PASSWORD = 'Torero@000'
-DEFAULT_FROM_EMAIL = 'john@johnmos.com'
+EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.dreamhost.com')
+EMAIL_PORT = int(os.getenv('EMAIL_PORT', 587))
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL')
+
+# PayPal settings
+PAYPAL_CLIENT_ID = os.environ.get('PAYPAL_CLIENT_ID', 'AWgdVCR3XQRjqdTu-lT0z73KQdtz74oAEVPjpCHbr16WeKD5Jv5U7lgDF7--k6hSeZ-wsnQGcgPeULL8')
+PAYPAL_CLIENT_SECRET = os.environ.get('PAYPAL_CLIENT_SECRET', 'EGLtJf5XU28XOTHtgGBOwfUwsPZw8hs064tX6slazx3VbK6RCfamQSZL3EnlXnbvxxT3FSKcPi3vuTSl')
+PAYPAL_SANDBOX = os.environ.get('PAYPAL_SANDBOX', 'True') == 'True'
+
+# Optional: Add webhook settings
+PAYPAL_WEBHOOK_ID = 'YOUR_WEBHOOK_ID'  # If you're using webhooks
+
+# Cache Configuration
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'unique-snowflake',
+        'TIMEOUT': 300,  # 5 minutes
+    }
+}
+
+# Subscription Settings
+SUBSCRIPTION_SETTINGS = {
+    'FREE_TIER_LINKS': 5,
+    'FREE_TIER_CLICKS': 1000,
+    'RETENTION_DAYS': {
+        'FREE': 30,
+        'PRO': 90,
+        'BUSINESS': 365,
+        'ENTERPRISE': 730
+    }
+}
+
+# Link Tracking Settings
+LINK_SETTINGS = {
+    'SHORT_ID_LENGTH': 6,
+    'TRACK_LOCATIONS': True,
+    'TRACK_DEVICES': True,
+    'ENABLE_CUSTOM_DOMAINS': True,
+}
+
+# Logging Configuration
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '{levelname} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'simple',
+        },
+        'file': {
+            'class': 'logging.FileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs', 'django.log'),
+            'formatter': 'verbose',
+            'mode': 'a',  # append mode
+        },
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console', 'file'],
+            'level': os.getenv('DJANGO_LOG_LEVEL', 'INFO'),
+            'propagate': True,
+        },
+    },
+}
+
+# Security Settings
+if not DEBUG:
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_BROWSER_XSS_FILTER = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    X_FRAME_OPTIONS = 'DENY'
+    SECURE_HSTS_SECONDS = 31536000  # 1 year
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+
+# Custom User Model
+AUTH_USER_MODEL = 'tracker.CustomUser'
+
+# Authentication Settings
+AUTHENTICATION_BACKENDS = [
+    'django.contrib.auth.backends.ModelBackend',
+]

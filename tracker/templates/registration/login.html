@@ -1,27 +1,142 @@
 {% extends 'tracker/base.html' %}
+{% load static %}
 
 {% block content %}
-<div class="card">
-    <div class="card-header">
-        <h2>Login</h2>
-    </div>
-    <div class="card-body">
-        <form method="post">
-            {% csrf_token %}
-            <div class="mb-3">
-                <label for="username" class="form-label">Username</label>
-                <input type="text" name="username" class="form-control" required>
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            {% if messages %}
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show mb-4">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
             </div>
-            <div class="mb-3">
-                <label for="password" class="form-label">Password</label>
-                <input type="password" name="password" class="form-control" required>
+            {% endfor %}
+            {% endif %}
+
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-5">
+                    <!-- Logo and Title -->
+                    <div class="text-center mb-4">
+                        <svg class="mb-3" width="48" height="48" viewBox="0 0 24 24" fill="none">
+                            <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="currentColor" stroke-width="2"/>
+                            <path d="M12 6V18M9 9L15 15M15 9L9 15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                        <h2 class="h3 mb-0">Welcome Back</h2>
+                        <p class="text-muted">Sign in to your Link DNA account</p>
+                    </div>
+
+                    <!-- Login Form -->
+                    <form method="post" class="needs-validation" novalidate>
+                        {% csrf_token %}
+                        
+                        <!-- Email Field -->
+                        <div class="form-floating mb-3">
+                            <input type="email" name="username" class="form-control" id="id_username" placeholder="name@example.com" required>
+                            <label for="id_username">Email address</label>
+                            {% if form.username.errors %}
+                            <div class="invalid-feedback">
+                                {{ form.username.errors|join:", " }}
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Password Field -->
+                        <div class="form-floating mb-4">
+                            <input type="password" name="password" class="form-control" id="id_password" placeholder="Password" required>
+                            <label for="id_password">Password</label>
+                            {% if form.password.errors %}
+                            <div class="invalid-feedback">
+                                {{ form.password.errors|join:", " }}
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Form Error Messages -->
+                        {% if form.non_field_errors %}
+                        <div class="alert alert-danger mb-4">
+                            {% for error in form.non_field_errors %}
+                            <p class="mb-0">{{ error }}</p>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+
+                        <!-- Submit Button -->
+                        <div class="d-grid mb-4">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="bi bi-box-arrow-in-right me-2"></i>Sign In
+                            </button>
+                        </div>
+                    </form>
+
+                    <!-- Links -->
+                    <div class="text-center">
+                        <p class="mb-2">
+                            <a href="{% url 'signup' %}" class="text-decoration-none">
+                                <i class="bi bi-person-plus me-1"></i>Don't have an account? Sign up
+                            </a>
+                        </p>
+                        <p class="mb-0">
+                            <a href="#" class="text-decoration-none text-muted">
+                                <i class="bi bi-key me-1"></i>Forgot your password?
+                            </a>
+                        </p>
+                    </div>
+                </div>
             </div>
-            <button type="submit" class="btn btn-primary">Login</button>
-            <input type="hidden" name="next" value="{{ next }}">
-        </form>
-        <p class="mt-3">
-            Don't have an account? <a href="{% url 'signup' %}">Sign up</a>
-        </p>
+
+            <!-- Additional Info -->
+            <div class="text-center mt-4">
+                <p class="text-muted small mb-0">
+                    By signing in, you agree to our 
+                    <a href="#" class="text-decoration-none">Terms of Service</a> and 
+                    <a href="#" class="text-decoration-none">Privacy Policy</a>
+                </p>
+            </div>
+        </div>
     </div>
 </div>
+
+<style>
+.form-floating > .form-control:focus ~ label,
+.form-floating > .form-control:not(:placeholder-shown) ~ label {
+    color: #6c757d;
+    opacity: .65;
+}
+
+.form-control:focus {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.15);
+}
+
+.btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px rgba(50, 50, 93, 0.11), 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.card {
+    border-radius: 1rem;
+}
+
+.card-body {
+    border-radius: 1rem;
+}
+</style>
+
+<script>
+// Form validation
+(function () {
+    'use strict'
+    var forms = document.querySelectorAll('.needs-validation')
+    Array.prototype.slice.call(forms).forEach(function (form) {
+        form.addEventListener('submit', function (event) {
+            if (!form.checkValidity()) {
+                event.preventDefault()
+                event.stopPropagation()
+            }
+            form.classList.add('was-validated')
+        }, false)
+    })
+})()
+</script>
 {% endblock %}
